@@ -22,16 +22,12 @@ app.use(express.urlencoded({
 }));
 app.use(cookieParser());
 app.use(express.static(path.join(__dirname, 'public')));
+app.use(favicon(__dirname + '/public/images/favicon.ico'));
 app.use(fileUpload());
-app.get('/test', (req, res) => {
-  res.type('text/html');
-  res.send('<h2>This is a testing.</h2>');
-})
 app.post('/upload', uploadfile.uploadafile);
+app.use('/tsparse', tsParseRouter);
 app.use('/', indexRouter);
 app.use('/users', usersRouter);
-app.use('/tsparse', tsParseRouter);
-app.use(favicon(__dirname + '/public/images/favicon.ico'));
 // catch 404 and forward to error handler
 app.use(function (req, res, next) {
   next(createError(404));
