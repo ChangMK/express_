@@ -3,8 +3,8 @@ let bufStrings = new Array();
 let bufString = new Array();
 let i = 0;
 
-let patFind = false;
-let pmtFind = false;
+
+
 let patSectionLength;
 let TSID;
 let programNumber;
@@ -24,8 +24,9 @@ let gnullCount = 0;
 let gzeroCount = 0;
 let theRatio = 0;
 
-function findpat() {
+function findpat(res) {
     let index = 0;
+    let patFind = false;
     while (!patFind) {
         let tmpId = ''
         bufString.length = 0;
@@ -48,14 +49,18 @@ function findpat() {
         index += 1;
         if (index == bufStrings.length) {
             patFind = true;
-            throw new Error("Can't find PAT");
+            res.render('error', {
+                message: "Can't find PAT"
+            });
         }
 
     }
+    patFind = false;
 }
 
-function findpmt() {
+function findpmt(res) {
     let index = 0;
+    let pmtFind = false;
     while (!pmtFind) {
         let tmpId = ''
         bufString.length = 0;
@@ -85,13 +90,15 @@ function findpmt() {
         index += 1;
         if (index == bufStrings.length) {
             pmtFind = true;
-            throw new Error("Can't find PMT");
+            res.render('error', {
+                message: "Can't find PMT"
+            });
+            // throw new Error("Can't find PMT");
         }
     }
 }
 
 function analyzeEachPidCount() {
-    let index = 0;
     let videoCount = 0;
     let audioCount = 0;
     let patCount = 0;
@@ -183,6 +190,7 @@ function uploadafile(req, res) {
     sampleFile.mv(__dirname + '/../uploadfile/' + sampleFile.name, err => {
         if (err)
             return res.status(500).send(err);
+        var curPath = __dirname + '/../uploadfile/' + sampleFile.name;
         var rs = fs.createReadStream(__dirname + '/../uploadfile/' + sampleFile.name, {
             encoding: 'hex',
             highWaterMark: 188
@@ -194,8 +202,8 @@ function uploadafile(req, res) {
         rs.on('end', function () {
             console.log('Read End!');
             totalPacketLength = bufStrings.length;
-            findpat();
-            findpmt();
+            findpat(res);
+            findpmt(res);
             console.log(totalPacketLength);
             analyzeEachPidCount();
             analyzeVideoPackZeroCount();
@@ -208,6 +216,7 @@ function uploadafile(req, res) {
         // });
         rs.on('close', function (error) {
             bufStrings.length = 0;
+            fs.unlinkSync(curPath);
             console.log('Stream has been destroyed and file has been closed');
             res.render('name', {
                 status: 'Success',
