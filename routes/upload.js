@@ -13,6 +13,8 @@ let pmtSectionLength;
 let pcrPid;
 let videoPid;
 let audioPid;
+let videoPidForAna = '';
+let audioPidForAna = '';
 let totalPacketLength = 0;
 let gvideoCount = 0;
 let gaudioCount = 0;
@@ -114,9 +116,11 @@ function analyzeEachPidCount() {
 
         if (tmpId == videoPid) {
             videoCount++;
+            videoPidForAna = bufString[1] + bufString[2];
         }
         if (tmpId == audioPid) {
             audioCount++;
+            audiooPidForAna = bufString[1] + bufString[2]
         }
         if (tmpId == '1ffd') {
             nullCount++;
@@ -142,13 +146,16 @@ function analyzeVideoPackZeroCount() {
     let index = 0;
     let zeroCount = 0;
     let count = bufStrings.length;
+    let videoRexdex = ('47' + videoPidForAna + '\\w{2}(?:00{184})');
     while (count--) {
-        if (bufStrings[count].search(/(?:00){184,}/g) == 8)
+        if (bufStrings[count].search(videoRexdex) == 0) {
             zeroCount++;
+        }
     }
     gzeroCount = zeroCount;
     zeroCount = 0;
 }
+
 
 function prefixbinary(num, n) {
     return (Array(n).join(0) + num).slice(-n);
