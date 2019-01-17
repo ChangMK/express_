@@ -1,24 +1,26 @@
-var fs = require('fs');
-var bufStrings = new Array();
-var bufString = new Array();
-var i = 0;
+const fs = require('fs');
+let bufStrings = new Array();
+let bufString = new Array();
+let i = 0;
 
-var patFind = false;
-var pmtFind = false;
-var patSectionLength;
-var TSID;
-var programNumber;
-var programMapId;
-var pmtSectionLength;
-var pcrPid;
-var videoPid;
-var audioPid;
-
-var videoCount = 0;
-var audioCount = 0;
-var patCount = 0;
-var pmtCount = 0;
-var nullCount = 0;
+let patFind = false;
+let pmtFind = false;
+let patSectionLength;
+let TSID;
+let programNumber;
+let pmtId;
+let pmtSectionLength;
+let pcrPid;
+let videoPid;
+let audioPid;
+let totalPacketLength = 0;
+let gvideoCount = 0;
+let gaudioCount = 0;
+let gpatCount = 0;
+let gpmtCount = 0;
+let gnullCount = 0;
+let gzeroCount = 0;
+let theRatio = 0;
 
 function findpat() {
     let index = 0;
@@ -86,16 +88,20 @@ function findpmt() {
     }
 }
 
-function analyze() {
+function analyzeEachPidCount() {
     let index = 0;
-
+    let videoCount = 0;
+    let audioCount = 0;
+    let patCount = 0;
+    let pmtCount = 0;
+    let nullCount = 0;
     let count = bufStrings.length;
     console.log(count);
     while (count--) {
         let tmpId = ''
         bufString.length = 0;
         for (i = 0; i < 8; i += 2) {
-            bufString.push(bufStrings[index].slice(i, i + 2));
+            bufString.push(bufStrings[count].slice(i, i + 2));
         }
 
         tmpId = getsplitbits(bufString[1], bufString[2], 5);
@@ -115,13 +121,33 @@ function analyze() {
         if (tmpId == '1ffd') {
             nullCount++;
         }
-        index += 1;
-        // console.log(count);
     }
-    console.log(videoCount);
-    console.log(audioCount);
-    console.log(patCount);
-    console.log(pmtCount);
+    gvideoCount = videoCount;
+    gaudioCount = audioCount;
+    gpatCount = patCount;
+    gpmtCount = pmtCount;
+    gnullCount = nullCount;
+    videoCount = 0;
+    audioCount = 0;
+    patCount = 0;
+    pmtCount = 0;
+    nullCount = 0;
+    console.log(gvideoCount);
+    console.log(gaudioCount);
+    console.log(gpatCount);
+    console.log(gpmtCount);
+}
+
+function analyzeVideoPackZeroCount() {
+    let index = 0;
+    let zeroCount = 0;
+    let count = bufStrings.length;
+    while (count--) {
+        if (bufStrings[count].search(/(?:00){184,}/g) == 8)
+            zeroCount++;
+    }
+    gzeroCount = zeroCount;
+    zeroCount = 0;
 }
 
 function prefixbinary(num, n) {
@@ -160,10 +186,13 @@ function uploadafile(req, res) {
         });
         rs.on('end', function () {
             console.log('Read End!');
+            totalPacketLength = bufStrings.length;
             findpat();
             findpmt();
-            console.log(bufStrings.length);
-            analyze();
+            console.log(totalPacketLength);
+            analyzeEachPidCount();
+            analyzeVideoPackZeroCount();
+            theRatio = ((gzeroCount / gvideoCount) * 100) + '%';
 
         });
 
@@ -171,6 +200,7 @@ function uploadafile(req, res) {
         //     console.error('Error:', error.message);
         // });
         rs.on('close', function (error) {
+            bufStrings.length = 0;
             console.log('Stream has been destroyed and file has been closed');
             res.render('name', {
                 status: 'Success',
@@ -179,11 +209,13 @@ function uploadafile(req, res) {
                 PMTID: '0x' + pmtId,
                 VPID: '0x' + videoPid,
                 APID: '0x' + audioPid,
-                TOTALPACKET: bufStrings.length,
-                PATPACKET: patCount,
-                PMTPACKET: pmtCount,
-                VIDEOPACKET: videoCount,
-                AUDIOPACKET: audioCount,
+                TOTALPACKET: totalPacketLength,
+                PATPACKET: gpatCount,
+                PMTPACKET: gpmtCount,
+                VIDEOPACKET: gvideoCount,
+                AUDIOPACKET: gaudioCount,
+                VIDEOZEROCOUNT: gzeroCount,
+                THERATIO: theRatio,
             });
 
         });

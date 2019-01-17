@@ -6,7 +6,7 @@ router.get('/', function (req, res, next) {
 
     res.render('tsparse', {
         title: 'Express',
-        body: 'Success'
+        body: 'Welcome'
     });
 });
 
