@@ -6,6 +6,10 @@ let videoPesBFramBufStrings = new Array();
 let videoPesPFramBufStrings = new Array();
 let AudioPesBufStrings = new Array();
 let bufString = new Array();
+const pictureHeader = '00000100';
+const zeroPadding = '\\w{2}(?:00{184})';
+const pesStartCode = '\\w{2}000001e\\w';
+const pesPicStartCode = '\\w{2}0120000001e\\w';
 const syncByte = '47';
 const frameTypeI = '001';
 const frameTypeP = '010';
@@ -155,9 +159,10 @@ function analyzeEachPidCount() {
     nullCount = 0;
 }
 
-function picturetype(length) {
-    let x = parseInt(bufStrings[count].substr(36 + length, 2), 16).toString(2);
+function picturetype(pictureTypePosition, count) {
+    let x = parseInt(bufStrings[count].substr(pictureTypePosition, 2), 16).toString(2);
     let pictureType = prefixbinary(x, 8).substr(2, 3);
+
     if (pictureType == frameTypeI) {
         return 'I';
     } else if (pictureType == frameTypeB) {
@@ -167,9 +172,22 @@ function picturetype(length) {
     } else if (pictureType == frameTypeD) {
         return 'D';
     }
+
+
+}
+
+function getPesPacket(count, videoPesObject) {
+    let pictureTypePosition;
+    videoPesBufStrings = bufStrings[count];
+    videoPesObject.count = count;
+    videoPesObject.packet = bufStrings[count];
+    pictureTypePosition = bufStrings[count].search(pictureHeader) + 10;
+    videoPesObject.pictype = picturetype(pictureTypePosition, count);
+    videoPes.push(videoPesObject);
 }
 
 function analyzeVideoCount() {
+
     let addPayloadUnitIndicator;
     let FixedAddPayloadUnitIndicator;
     let videoPesRexdex;
@@ -178,84 +196,26 @@ function analyzeVideoCount() {
     let zeroCount = 0;
     let count = 0;
 
-    videoZeroPaddingRexdex = RegExp(syncByte + videoPidForAna + '\\w{2}(?:00{184})');
+    videoZeroPaddingRexdex = RegExp(syncByte + videoPidForAna + zeroPadding);
     addPayloadUnitIndicator = (parseInt(videoPidForAna, 16) + 16384).toString(2);
     FixedAddPayloadUnitIndicator = parseInt(prefixbinary(addPayloadUnitIndicator, 16), 2).toString(16);
-    videoPesRexdex = RegExp(syncByte + FixedAddPayloadUnitIndicator + '\\w{2}000001e\\w');
-    videoPesAdaptationRexdex = RegExp(syncByte + FixedAddPayloadUnitIndicator + '\\w{2}0120000001e\\w');
+    videoPesRexdex = RegExp(syncByte + FixedAddPayloadUnitIndicator + pesStartCode);
+    videoPesAdaptationRexdex = RegExp(syncByte + FixedAddPayloadUnitIndicator + pesPicStartCode);
 
     while (bufStrings.length - count) {
         let videoPesObject = {};
         if (bufStrings[count].search(videoZeroPaddingRexdex) == 0) {
             zeroCount++;
         }
-        if (bufStrings[count].search(videoPesRexdex) == 0) {
-            let pesHeaderDataLength;
-            videoPesBufStrings = bufStrings[count];
-            videoPesObject.count = count;
-            videoPesObject.packet = bufStrings[count];
-            pesHeaderDataLength = parseInt(bufStrings[count].substr(24, 2)) * 2;
-            videoPesObject.pictype = picturetype(pesHeaderDataLength);
-
-
-            // if (bufStrings[count].substr(24, 2) == '0a') {
-            //     let x = parseInt(bufStrings[count].substr(56, 2), 16).toString(2);
-            //     let pictureType = prefixbinary(x, 8).substr(2, 3);
-            //     switch (pictureType) {
-            //         case frameTypeI:
-            //             videoPesObject.pictype = 'I';
-            //             break;
-            //         case frameTypeB:
-            //             videoPesObject.pictype = 'B';
-            //             break;
-            //         case frameTypeP:
-            //             videoPesObject.pictype = 'P';
-            //             break;
-            //         case frameTypeD:
-            //             videoPesObject.pictype = 'D';
-            //             break;
-            //         default:
-            //             console.error('picture type error');
-            //             break;
-
-            //     }
-            // }
-            // if (bufStrings[count].substr(24, 2) == '05') {
-            //     let x = parseInt(bufStrings[count].substr(46, 2), 16).toString(2);
-            //     let pictureType = prefixbinary(x, 8).substr(2, 3);
-            //     console.log('\n');
-            //     console.log(bufStrings[count]);
-            //     console.log(bufStrings[count].substr(46, 2));
-            //     console.log(x);
-            //     console.log(pictureType);
-            //     switch (pictureType) {
-            //         case frameTypeI:
-            //             videoPesObject.pictype = 'I';
-            //             break;
-            //         case frameTypeB:
-            //             videoPesObject.pictype = 'B';
-            //             break;
-            //         case frameTypeP:
-            //             videoPesObject.pictype = 'P';
-            //             break;
-            //         case frameTypeD:
-            //             videoPesObject.pictype = 'D';
-            //             break;
-            //         default:
-            //             console.error('picture type error');
-            //             break;
-
-            //     }
-            // }
-            videoPes.push(videoPesObject);
-            // if (bufStrings[count].search(videoPesAdaptationRexdex) == 0) {
-            //     videoPesBufStrings = bufStrings[count];
-            //     videoPesObject.count = count;
-            //     videoPesObject// if (bufStr.packet = bufStrings[count];
-            //     videoPes.push(videoPesObject);
-            //     //console.log(bufStrings[count].substr(46, 2));
+        if (bufStrings[count].search(videoPesRexdex) == 0 || bufStrings[count].search(videoPesAdaptationRexdex) == 0) {
+            getPesPacket(count, videoPesObject);
         }
-        count++
+        count++;
+    }
+    for (let index of Object.keys(videoPes)) {
+        if (videoPes[index].pictype == 'I') {
+            console.log(videoPes[index]);
+        }
     }
     gzeroCount = zeroCount;
     zeroCount = 0;
