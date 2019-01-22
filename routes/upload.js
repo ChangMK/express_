@@ -1,6 +1,17 @@
 const fs = require('fs');
 let bufStrings = new Array();
+let videoPes = new Array();
+let videoPesIFramBufStrings = new Array();
+let videoPesBFramBufStrings = new Array();
+let videoPesPFramBufStrings = new Array();
+let AudioPesBufStrings = new Array();
 let bufString = new Array();
+const syncByte = '47';
+const frameTypeI = '001';
+const frameTypeP = '010';
+const frameTypeB = '011';
+const frameTypeD = '100';
+
 let i = 0;
 
 
@@ -105,7 +116,6 @@ function analyzeEachPidCount() {
     let pmtCount = 0;
     let nullCount = 0;
     let count = bufStrings.length;
-    console.log(count);
     while (count--) {
         let tmpId = ''
         bufString.length = 0;
@@ -143,21 +153,109 @@ function analyzeEachPidCount() {
     patCount = 0;
     pmtCount = 0;
     nullCount = 0;
-    console.log(gvideoCount);
-    console.log(gaudioCount);
-    console.log(gpatCount);
-    console.log(gpmtCount);
 }
 
-function analyzeVideoPackZeroCount() {
-    let index = 0;
+function picturetype(length) {
+    let x = parseInt(bufStrings[count].substr(36 + length, 2), 16).toString(2);
+    let pictureType = prefixbinary(x, 8).substr(2, 3);
+    if (pictureType == frameTypeI) {
+        return 'I';
+    } else if (pictureType == frameTypeB) {
+        return 'B';
+    } else if (pictureType == frameTypeP) {
+        return 'P';
+    } else if (pictureType == frameTypeD) {
+        return 'D';
+    }
+}
+
+function analyzeVideoCount() {
+    let addPayloadUnitIndicator;
+    let FixedAddPayloadUnitIndicator;
+    let videoPesRexdex;
+    let videoPesAdaptationRexdex;
+    let videoZeroPaddingRexdex;
     let zeroCount = 0;
-    let count = bufStrings.length;
-    let videoRexdex = ('47' + videoPidForAna + '\\w{2}(?:00{184})');
-    while (count--) {
-        if (bufStrings[count].search(videoRexdex) == 0) {
+    let count = 0;
+
+    videoZeroPaddingRexdex = RegExp(syncByte + videoPidForAna + '\\w{2}(?:00{184})');
+    addPayloadUnitIndicator = (parseInt(videoPidForAna, 16) + 16384).toString(2);
+    FixedAddPayloadUnitIndicator = parseInt(prefixbinary(addPayloadUnitIndicator, 16), 2).toString(16);
+    videoPesRexdex = RegExp(syncByte + FixedAddPayloadUnitIndicator + '\\w{2}000001e\\w');
+    videoPesAdaptationRexdex = RegExp(syncByte + FixedAddPayloadUnitIndicator + '\\w{2}0120000001e\\w');
+
+    while (bufStrings.length - count) {
+        let videoPesObject = {};
+        if (bufStrings[count].search(videoZeroPaddingRexdex) == 0) {
             zeroCount++;
         }
+        if (bufStrings[count].search(videoPesRexdex) == 0) {
+            let pesHeaderDataLength;
+            videoPesBufStrings = bufStrings[count];
+            videoPesObject.count = count;
+            videoPesObject.packet = bufStrings[count];
+            pesHeaderDataLength = parseInt(bufStrings[count].substr(24, 2)) * 2;
+            videoPesObject.pictype = picturetype(pesHeaderDataLength);
+
+
+            // if (bufStrings[count].substr(24, 2) == '0a') {
+            //     let x = parseInt(bufStrings[count].substr(56, 2), 16).toString(2);
+            //     let pictureType = prefixbinary(x, 8).substr(2, 3);
+            //     switch (pictureType) {
+            //         case frameTypeI:
+            //             videoPesObject.pictype = 'I';
+            //             break;
+            //         case frameTypeB:
+            //             videoPesObject.pictype = 'B';
+            //             break;
+            //         case frameTypeP:
+            //             videoPesObject.pictype = 'P';
+            //             break;
+            //         case frameTypeD:
+            //             videoPesObject.pictype = 'D';
+            //             break;
+            //         default:
+            //             console.error('picture type error');
+            //             break;
+
+            //     }
+            // }
+            // if (bufStrings[count].substr(24, 2) == '05') {
+            //     let x = parseInt(bufStrings[count].substr(46, 2), 16).toString(2);
+            //     let pictureType = prefixbinary(x, 8).substr(2, 3);
+            //     console.log('\n');
+            //     console.log(bufStrings[count]);
+            //     console.log(bufStrings[count].substr(46, 2));
+            //     console.log(x);
+            //     console.log(pictureType);
+            //     switch (pictureType) {
+            //         case frameTypeI:
+            //             videoPesObject.pictype = 'I';
+            //             break;
+            //         case frameTypeB:
+            //             videoPesObject.pictype = 'B';
+            //             break;
+            //         case frameTypeP:
+            //             videoPesObject.pictype = 'P';
+            //             break;
+            //         case frameTypeD:
+            //             videoPesObject.pictype = 'D';
+            //             break;
+            //         default:
+            //             console.error('picture type error');
+            //             break;
+
+            //     }
+            // }
+            videoPes.push(videoPesObject);
+            // if (bufStrings[count].search(videoPesAdaptationRexdex) == 0) {
+            //     videoPesBufStrings = bufStrings[count];
+            //     videoPesObject.count = count;
+            //     videoPesObject// if (bufStr.packet = bufStrings[count];
+            //     videoPes.push(videoPesObject);
+            //     //console.log(bufStrings[count].substr(46, 2));
+        }
+        count++
     }
     gzeroCount = zeroCount;
     zeroCount = 0;
@@ -204,10 +302,10 @@ function uploadafile(req, res) {
             totalPacketLength = bufStrings.length;
             findpat(res);
             findpmt(res);
-            console.log(totalPacketLength);
             analyzeEachPidCount();
-            analyzeVideoPackZeroCount();
-            theRatio = ((gzeroCount / gvideoCount) * 100) + '%';
+            analyzeVideoCount();
+            theRatio = ((gzeroCount / gvideoCount) * 100).toFixed(3) + '%';
+
 
         });
 
@@ -216,6 +314,7 @@ function uploadafile(req, res) {
         // });
         rs.on('close', function (error) {
             bufStrings.length = 0;
+            videoPes.length = 0;
             fs.unlinkSync(curPath);
             console.log('Stream has been destroyed and file has been closed');
             res.render('name', {
