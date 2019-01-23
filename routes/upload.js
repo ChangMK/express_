@@ -1,9 +1,10 @@
 const fs = require('fs');
+let fileQueue = new Array();
 let bufStrings = new Array();
 let videoPes = new Array();
-let videoPesIFramBufStrings = new Array();
-let videoPesBFramBufStrings = new Array();
-let videoPesPFramBufStrings = new Array();
+let videoPesIFrame = new Array();
+let videoPesBFrame = new Array();
+let videoPesPFrame = new Array();
 let AudioPesBufStrings = new Array();
 let bufString = new Array();
 const pictureHeader = '00000100';
@@ -180,9 +181,9 @@ function getPesPacket(count, videoPesObject) {
     let pictureTypePosition;
     videoPesBufStrings = bufStrings[count];
     videoPesObject.count = count;
-    videoPesObject.packet = bufStrings[count];
     pictureTypePosition = bufStrings[count].search(pictureHeader) + 10;
     videoPesObject.pictype = picturetype(pictureTypePosition, count);
+    videoPesObject.packet = bufStrings[count];
     videoPes.push(videoPesObject);
 }
 
@@ -214,7 +215,13 @@ function analyzeVideoCount() {
     }
     for (let index of Object.keys(videoPes)) {
         if (videoPes[index].pictype == 'I') {
-            console.log(videoPes[index]);
+            videoPesIFrame.push(videoPes[index]);
+        }
+        if (videoPes[index].pictype == 'B') {
+            videoPesBFrame.push(videoPes[index]);
+        }
+        if (videoPes[index].pictype == 'P') {
+            videoPesPFrame.push(videoPes[index]);
         }
     }
     gzeroCount = zeroCount;
@@ -248,8 +255,12 @@ function uploadafile(req, res) {
     sampleFile.mv(__dirname + '/../uploadfile/' + sampleFile.name, err => {
         if (err)
             return res.status(500).send(err);
-        var curPath = __dirname + '/../uploadfile/' + sampleFile.name;
-        var rs = fs.createReadStream(__dirname + '/../uploadfile/' + sampleFile.name, {
+        let curPath = __dirname + '/../uploadfile/' + sampleFile.name;
+        /* need to implement mutex */
+        // fileQueue.push(curPath);
+        // let nowFilePath = fileQueue.reverse().pop();
+
+        var rs = fs.createReadStream(curPath, {
             encoding: 'hex',
             highWaterMark: 188
 
@@ -273,9 +284,6 @@ function uploadafile(req, res) {
         //     console.error('Error:', error.message);
         // });
         rs.on('close', function (error) {
-            bufStrings.length = 0;
-            videoPes.length = 0;
-            fs.unlinkSync(curPath);
             console.log('Stream has been destroyed and file has been closed');
             res.render('name', {
                 status: 'Success',
@@ -291,8 +299,17 @@ function uploadafile(req, res) {
                 AUDIOPACKET: gaudioCount,
                 VIDEOZEROCOUNT: gzeroCount,
                 THERATIO: theRatio,
+                ALLPICFRAME: JSON.stringify(videoPes),
+                IFRAME: JSON.stringify(videoPesIFrame),
+                BFRAME: JSON.stringify(videoPesBFrame),
+                PFRAME: JSON.stringify(videoPesPFrame),
             });
-
+            fs.unlinkSync(curPath);
+            bufStrings.length = 0;
+            videoPes.length = 0;
+            videoPesIFrame = {};
+            videoPesBFrame = {};
+            videoPesPFrame = {};
         });
     })
 }
