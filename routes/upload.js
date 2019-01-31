@@ -57,7 +57,6 @@ function findpat(res) {
         let tmpId = ''
         bufString.length = 0;
         bufs = bufStrings[index];
-        debug('bufs.length:', bufs.length);
         bufsLength = bufs.length;
         for (i = 0; i < bufsLength; i += 2) {
             bufString.push(bufStrings[index].slice(i, i + 2));
@@ -239,6 +238,7 @@ function analyzevideocount() {
         }
         count++;
     }
+
     for (let index of Object.keys(videoPes)) {
         if (videoPes[index].pictype == 'I') {
             videoPesIFrame.push(videoPes[index]);
@@ -256,13 +256,12 @@ function analyzevideocount() {
     while (arrVideoPacket.length - arrIndex) {
         let vCount = arrVideoPacket[arrIndex].count;
         let pesCount = videoPes[pesIndex].count;
-        if (vCount < pesCount) {
+        if (vCount <= pesCount) {
             if (arrVideoPacket[arrIndex].packet.search(videoZeroPaddingRexdex) == 0) {
                 zeroCountA++;
             }
             x++;
         } else {
-            console.log('\n\n');
             delete videoPes[pesIndex].packet;
             if (pesIndex == 0) {
                 pesIndex++;
@@ -277,12 +276,13 @@ function analyzevideocount() {
             if (videoPes.length <= pesIndex)
                 break;
 
-            x = 0;
+            x = 1;
             zeroCountA = 0;
         }
 
         arrIndex++;
     }
+
     gzeroCount = zeroCount;
     zeroCount = 0;
 }
