@@ -21,7 +21,10 @@ const frameTypeB = '011';
 const frameTypeD = '100';
 
 let i = 0;
-
+let totalRatio = 0;
+let averageIRatio = 0;
+let averageBRatio = 0;
+let averagePRatio = 0;
 
 
 let patSectionLength;
@@ -212,7 +215,6 @@ function getPesPacket(count, videoPesObject) {
 }
 
 function analyzevideocount() {
-
     let addPayloadUnitIndicator;
     let FixedAddPayloadUnitIndicator;
     let videoPesRexdex;
@@ -273,7 +275,7 @@ function analyzevideocount() {
                 continue;
             }
             videoPes[pesIndex - 1].vcount = x;
-            videoPes[pesIndex - 1].zeroRatio = ((zeroCountA / x) * 100).toFixed(3) + '%';
+            videoPes[pesIndex - 1].zeroRatio = ((zeroCountA / x) * 100).toFixed(3);
             videoPes[pesIndex - 1].zeroCount = zeroCountA;
             videoPaddingRatio.push(((zeroCountA / x) * 100).toFixed(3));
             pesIndex++;
@@ -308,6 +310,26 @@ function getsplitbits(splitNum, joinNum, splitLength) {
     return prefixbinary(parseInt(fixedBinary.slice((8 - splitLength), 8), 2).toString(16) + joinNum, 4);
 }
 
+function frameaverageratio() {
+    for (let index of Object.keys(videoPesIFrame)) {
+        totalRatio = totalRatio + parseInt(videoPesIFrame[index].zeroRatio);
+    }
+    averageIRatio = (totalRatio / videoPesIFrame.length).toFixed(3) + '%';
+    totalRatio = 0;
+
+    for (let index of Object.keys(videoPesBFrame)) {
+        totalRatio = totalRatio + parseInt(videoPesBFrame[index].zeroRatio);
+    }
+    averageBRatio = (totalRatio / videoPesBFrame.length).toFixed(3) + '%';
+    totalRatio = 0;
+
+    for (let index of Object.keys(videoPesPFrame)) {
+        totalRatio = totalRatio + parseInt(videoPesPFrame[index].zeroRatio);
+    }
+    averagePRatio = (totalRatio / videoPesPFrame.length).toFixed(3) + '%';
+    totalRatio = 0;
+}
+
 function uploadafile(req, res) {
 
     if (Object.keys(req.files).length == 0) {
@@ -316,7 +338,7 @@ function uploadafile(req, res) {
     let sampleFile = req.files.sampleFile;
     let curPath = __dirname + '/../uploadfile/' + sampleFile.name;
 
-    sampleFile.mv(__dirname + '/../uploadfile/' + sampleFile.name, err => {
+    sampleFile.mv(sampleFile.name, err => {
         if (err)
             return res.status(500).send(err);
     });
@@ -324,22 +346,20 @@ function uploadafile(req, res) {
     // fileQueue.push(curPath);
     // let nowFilePath = fileQueue.reverse().pop();
 
-    var rs = fs.createReadStream(__dirname + '/../uploadfile/' + sampleFile.name, {
+    var rs = fs.createReadStream(sampleFile.name, {
         encoding: 'hex',
         highWaterMark: 188
-
-    });
-    rs.on('data', function (data) {
+    }).on('data', function (data) {
         bufStrings.push(data);
 
-    });
-    rs.on('end', function () {
+    }).on('end', function () {
         console.log('Read End!');
         totalPacketLength = bufStrings.length;
         findpat(res);
         findpmt(res);
         analyzeeachpidcount();
         analyzevideocount();
+        frameaverageratio();
         theRatio = ((gzeroCount / gvideoCount) * 100).toFixed(3) + '%';
 
 
@@ -370,8 +390,11 @@ function uploadafile(req, res) {
             PFRAME: JSON.stringify(videoPesPFrame),
             VIDEOPESCOUNT: videoPesCount,
             VIDEOPADDINGRATIO: videoPaddingRatio,
+            AVERAGEI: averageIRatio,
+            AVERAGEB: averageBRatio,
+            AVERAGEP: averagePRatio,
         });
-        fs.unlinkSync(curPath);
+        fs.unlinkSync(sampleFile.name);
         bufStrings.length = 0;
         videoPes.length = 0;
         videoZeroPaddingPacket.length = 0;
