@@ -6,3 +6,8 @@ body {
 a {
   color: #00B7FF;
 }
+
+.myChartDiv {
+  max-width: 1900px;
+  max-height: 400px;
+}

@@ -2,6 +2,8 @@ const fs = require('fs');
 let fileQueue = new Array();
 let bufStrings = new Array();
 let videoPes = new Array();
+let videoPesCount = new Array();
+let videoPaddingRatio = new Array();
 let videoPesIFrame = new Array();
 let videoPesBFrame = new Array();
 let videoPesPFrame = new Array();
@@ -199,6 +201,7 @@ function getPesPacket(count, videoPesObject) {
     let pictureTypePosition;
     videoPesBufStrings = bufStrings[count];
     videoPesObject.count = count;
+    videoPesCount.push(count);
     pictureTypePosition = bufStrings[count].search(pictureHeader) + 10;
     videoPesObject.pictype = picturetype(pictureTypePosition, count);
     videoPesObject.packet = bufStrings[count];
@@ -272,6 +275,7 @@ function analyzevideocount() {
             videoPes[pesIndex - 1].vcount = x;
             videoPes[pesIndex - 1].zeroRatio = ((zeroCountA / x) * 100).toFixed(3) + '%';
             videoPes[pesIndex - 1].zeroCount = zeroCountA;
+            videoPaddingRatio.push(((zeroCountA / x) * 100).toFixed(3));
             pesIndex++;
             if (videoPes.length <= pesIndex)
                 break;
@@ -364,12 +368,16 @@ function uploadafile(req, res) {
             IFRAME: JSON.stringify(videoPesIFrame),
             BFRAME: JSON.stringify(videoPesBFrame),
             PFRAME: JSON.stringify(videoPesPFrame),
+            VIDEOPESCOUNT: videoPesCount,
+            VIDEOPADDINGRATIO: videoPaddingRatio,
         });
         fs.unlinkSync(curPath);
         bufStrings.length = 0;
         videoPes.length = 0;
         videoZeroPaddingPacket.length = 0;
         arrVideoPacket.length = 0;
+        videoPesCount.length = 0;
+        videoPaddingRatio.length = 0;
         videoPesIFrame = {};
         videoPesBFrame = {};
         videoPesPFrame = {};
