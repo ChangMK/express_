@@ -10,6 +10,8 @@ let videoPesPFrame = new Array();
 let videoZeroPaddingPacket = new Array();
 let bufString = new Array();
 let arrVideoPacket = new Array();
+let programNumberTmp = new Array();
+let pmtIdTmp = new Array();
 const pictureHeader = '00000100';
 const zeroPadding = '\\w{2}(?:00{184})';
 const pesStartCode = '\\w{2}000001e\\w';
@@ -19,7 +21,8 @@ const frameTypeI = '001';
 const frameTypeP = '010';
 const frameTypeB = '011';
 const frameTypeD = '100';
-
+const numOfCRC32 = 4;
+const numBetweenLengthAndPGN = 5;
 let i = 0;
 let totalRatio = 0;
 let averageIRatio = 0;
@@ -58,28 +61,42 @@ function findpat(res) {
     let patFind = false;
     let bufs;
     let bufsLength;
+    let numberOfPMT = 0;
+    let blockNumberOfPMT = 0;
     while (!patFind) {
-        let tmpId = ''
+        let tmpId = '';
         bufString.length = 0;
         bufs = bufStrings[index];
         bufsLength = bufs.length;
         for (i = 0; i < bufsLength; i += 2) {
             bufString.push(bufStrings[index].slice(i, i + 2));
         }
+        index += 1;
         tmpId = getsplitbits(bufString[1], bufString[2], 5);
         if (tmpId == '0000' && bufString[5] == '00') {
             console.log('get PAT');
             patFind = true;
-            patSectionLength = bufString[7];
+            patSectionLength = parseInt(bufString[7], 16);
+            console.log('patSectionLength=' + patSectionLength);
+            numberOfPMT = (patSectionLength - numOfCRC32 - numBetweenLengthAndPGN) / 4; // PGN+PMT ID = 4 bytes
+            console.log('numberOfPMT=' + numberOfPMT);
             TSID = bufString[8] + bufString[9];
             console.log('TSID:0x' + TSID);
-            programNumber = bufString[13] + bufString[14];
+            while (numberOfPMT) {
+                blockNumberOfPMT = numberOfPMT * 4;
+                programNumberTmp[numberOfPMT] = bufString[blockNumberOfPMT + 9] + bufString[blockNumberOfPMT + 10];
+                //console.log('PGN:0x' + programNumber);
+                // PMT ID has 5-bits at bufString[15][4:0]
+                pmtIdTmp[numberOfPMT] = getsplitbits(bufString[blockNumberOfPMT + 11], bufString[blockNumberOfPMT + 12], 5);
+                //console.log('PMTID:0x' + pmtId);
+                numberOfPMT--;
+            }
+            programNumber = programNumberTmp[1];
             console.log('PGN:0x' + programNumber);
-            // PMT ID has 5-bits at bufString[15][4:0]
-            pmtId = getsplitbits(bufString[15], bufString[16], 5);
+            pmtId = pmtIdTmp[1];
             console.log('PMTID:0x' + pmtId);
         }
-        index += 1;
+        //index += 1;
         if (index == bufStrings.length) {
             patFind = true;
             res.render('error', {
