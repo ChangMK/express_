@@ -1,14 +1,19 @@
 const fs = require('fs');
 let fileQueue = new Array();
-let bufStrings = new Array();
+let bufStrings = [];
+// let bufStrings = new Array();
 let videoPes = new Array();
 let videoPesCount = new Array();
 let videoPaddingRatio = new Array();
-let videoPesIFrame = new Array();
-let videoPesBFrame = new Array();
-let videoPesPFrame = new Array();
+let videoPesIFrame = [];
+let videoPesBFrame = [];
+let videoPesPFrame = [];
+// let videoPesIFrame = new Array();
+// let videoPesBFrame = new Array();
+// let videoPesPFrame = new Array();
 let videoZeroPaddingPacket = new Array();
-let bufString = new Array();
+let bufString = [];
+// let bufString = new Array();
 let arrVideoPacket = new Array();
 let programNumberTmp = new Array();
 let pmtIdTmp = new Array();
@@ -28,7 +33,7 @@ let totalRatio = 0;
 let averageIRatio = 0;
 let averageBRatio = 0;
 let averagePRatio = 0;
-
+let programSelected = 1;
 
 let patSectionLength;
 let TSID;
@@ -59,7 +64,7 @@ function debug(p1, p2 = '', p3 = '', ...other) {
 function findpat(res) {
     let index = 0;
     let patFind = false;
-    let bufs;
+    let bufs = [];
     let bufsLength;
     let numberOfPMT = 0;
     let blockNumberOfPMT = 0;
@@ -68,13 +73,15 @@ function findpat(res) {
         bufString.length = 0;
         bufs = bufStrings[index];
         bufsLength = bufs.length;
-        for (i = 0; i < bufsLength; i += 2) {
+        console.log("bufsLength=", bufsLength);
+        for (i = 0; i < 376; i += 2) {
             bufString.push(bufStrings[index].slice(i, i + 2));
         }
         index += 1;
         tmpId = getsplitbits(bufString[1], bufString[2], 5);
         if (tmpId == '0000' && bufString[5] == '00') {
             console.log('get PAT');
+            console.log('programSelected=' + programSelected);
             patFind = true;
             patSectionLength = parseInt(bufString[7], 16);
             console.log('patSectionLength=' + patSectionLength);
@@ -85,25 +92,21 @@ function findpat(res) {
             while (numberOfPMT) {
                 blockNumberOfPMT = numberOfPMT * 4;
                 programNumberTmp[numberOfPMT] = bufString[blockNumberOfPMT + 9] + bufString[blockNumberOfPMT + 10];
-                //console.log('PGN:0x' + programNumber);
                 // PMT ID has 5-bits at bufString[15][4:0]
                 pmtIdTmp[numberOfPMT] = getsplitbits(bufString[blockNumberOfPMT + 11], bufString[blockNumberOfPMT + 12], 5);
-                //console.log('PMTID:0x' + pmtId);
                 numberOfPMT--;
             }
-            programNumber = programNumberTmp[1];
+            programNumber = programNumberTmp[programSelected];
             console.log('PGN:0x' + programNumber);
-            pmtId = pmtIdTmp[1];
+            pmtId = pmtIdTmp[programSelected];
             console.log('PMTID:0x' + pmtId);
         }
-        //index += 1;
         if (index == bufStrings.length) {
             patFind = true;
             res.render('error', {
                 message: "Can't find PAT"
             });
         }
-
     }
     patFind = false;
 }
@@ -349,6 +352,7 @@ function frameaverageratio() {
 
 function uploadafile(req, res) {
 
+    programSelected = req.body.text.charAt(1);
     if (Object.keys(req.files).length == 0) {
         return res.status(400).send('Nofiles were uploades.');
     }

@@ -9,6 +9,7 @@ var usersRouter = require('./routes/users');
 var tsParseRouter = require('./routes/tsparse');
 var favicon = require('serve-favicon');
 var uploadfile = require('./routes/upload');
+//var bodypaser = require('body-parser');
 var app = express();
 
 // view engine setup
@@ -21,6 +22,7 @@ app.use(express.urlencoded({
   extended: false
 }));
 app.use(cookieParser());
+app.use(require('body-parser')());
 app.use(express.static(path.join(__dirname, 'public')));
 app.use(favicon(__dirname + '/public/images/favicon.ico'));
 app.use(fileUpload());

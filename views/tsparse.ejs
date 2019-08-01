@@ -13,8 +13,18 @@
     <%= body %>
 </h2>
 <form action="/upload" method="post" enctype="multipart/form-data">
+    <div>選擇節目</div>
+    <div>
+        <select name="text" id="">
+            <option value="P1">1</option>
+            <option value="P2">2</option>
+            <option value="P3">3</option>
+            <option value="P4">4</option>
+        </select>
+    </div>
     <input type="file" name="sampleFile" title="Select File" />
     <input type="submit" value="Submit" />
+
 </form>
 
 <body>
